@@ -1,28 +1,26 @@
-from flask import Flask, request, Response
+from flask import Flask, request
 from twilio.twiml.messaging_response import MessagingResponse
+import os
 
 app = Flask(__name__)
 
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_reply():
-    try:
-        message = request.form.get("Body")
-        sender = request.form.get("From")
+    incoming_msg = request.values.get("Body", "").lower()
+    response = MessagingResponse()
+    msg = response.message()
 
-        print(f"✅ Webhook recibido de {sender}")
-        print(f"Mensaje recibido: {message}")
+    if "hola" in incoming_msg:
+        msg.body("¡Hola! Soy tu mesero virtual. ¿En qué puedo ayudarte hoy?")
+    else:
+        msg.body("No entendí tu mensaje. ¿Puedes repetirlo, por favor?")
 
-        # Crear respuesta TwiML
-        resp = MessagingResponse()
-        twiml_response = str(resp.message("¡Hola! Soy tu mesero virtual. ¿En qué puedo ayudarte hoy?"))
-
-        return Response(twiml_response, mimetype="application/xml")
-    except Exception as e:
-        print("❌ Error procesando mensaje:", e)
-        return "Error", 500
+    return str(response)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host="0.0.0.0", port=port)
+
 
 
 
