@@ -1,40 +1,47 @@
-from flask import Flask, request
+import os
+from flask import Flask, request, Response
 from twilio.twiml.messaging_response import MessagingResponse
 import openai
-import os
+
+# Configura tu clave de OpenAI desde variables de entorno
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 app = Flask(__name__)
 
-# Clave de OpenAI desde variable de entorno
-openai.api_key = os.environ.get("OPENAI_API_KEY")
-
 @app.route("/whatsapp", methods=["POST"])
-def whatsapp_reply():
-    incoming_msg = request.values.get("Body", "")
-    response = MessagingResponse()
-    msg = response.message()
+def whatsapp():
+    incoming_msg = request.form.get("Body")
+    from_number = request.form.get("From")
 
-    # Consulta a OpenAI
+    response = MessagingResponse()
+
+    if not incoming_msg:
+        response.message("No entendí tu mensaje. ¿Puedes repetirlo?")
+        return str(response)
+
     try:
-        chat_response = openai.ChatCompletion.create(
-            model="gpt-4",
+        completion = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
             messages=[
-                {"role": "system", "content": "Eres un mesero virtual, atento, amable, y puedes hablar en cualquier idioma según el cliente."},
-                {"role": "user", "content": incoming_msg}
+                {
+                    "role": "system",
+                    "content": "Eres un mesero virtual amigable que ayuda a los clientes a elegir su comida. Hablas el idioma del cliente y conoces el menú."
+                },
+                {
+                    "role": "user",
+                    "content": incoming_msg
+                }
             ]
         )
-        reply = chat_response.choices[0].message.content.strip()
+        answer = completion.choices[0].message.content.strip()
+        response.message(answer)
     except Exception as e:
-        reply = "Lo siento, hubo un problema. Intenta de nuevo más tarde."
+        print(f"Error con OpenAI: {e}")
+        response.message("Lo siento, hubo un problema. Intenta de nuevo más tarde.")
 
-    msg.body(reply)
     return str(response)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host="0.0.0.0", port=port)
-
-
-
-
+    app.run(host="0.0.0.0", port=port, debug=True)
 
